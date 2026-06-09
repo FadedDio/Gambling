@@ -142,6 +142,16 @@
      {3 scenarios\ \ \textbullet\ \ 1 underlying random walk};
 \end{tikzpicture}
 \end{frame}
+
+% ------------------------------------------------------------- OVERVIEW (NEW)
+\begin{frame}[t]{What is Gambler's Ruin?}
+\kick{Overview}
+\begin{itemize}
+    \item \textbf{The Core Model:} The \textbf{Gambler's Ruin} is a classical probability setup. It models a gambler with intial wealth $k$, who repeatedly plays a game until reaching a target $N$ or going broke at $0$. It represents a \textbf{random walk} between these two absorbing barriers.
+    \item \textbf{Key Objectives:} This framework is used to answer two primary questions: the likelihood of each final outcome (success vs. ruin) and the expected duration of the game.
+\end{itemize}
+\end{frame}
+
 % Basic definitions
 \begin{frame}[t]{Some common upcoming terms}
 \kick{hook}
@@ -156,29 +166,7 @@
 \item \textbf{Transition Matrix:} A square matrix where rows and columns represent states. Each element $A_{ij}$ depicts the probability to go from state $i$ to state $j$.
 \end{itemize}
 \end{frame}
-% ------------------------------------------------------------- WHY CARE
-\begin{frame}[t]{Why should an ML team care about a gambler?}
-\kick{The hook}
-\small
-Every system below is the \textbf{same mathematical object} in a different costume: a process that hops between states, where the next step depends only on where you are \emph{now}.
-\vspace{0.6em}
-\begin{columns}[t,onlytextwidth]
-  \begin{column}{0.235\textwidth}
-    \begin{cblock}{cPurple}{Reinforcement Learning}\scriptsize An agent choosing actions \emph{is} a gambler choosing bets. Value iteration solves it.\end{cblock}
-  \end{column}
-  \begin{column}{0.235\textwidth}
-    \begin{cblock}{cTeal}{Google PageRank}\scriptsize A surfer clicking links at random; page rank $=$ the stationary distribution.\end{cblock}
-  \end{column}
-  \begin{column}{0.235\textwidth}
-    \begin{cblock}{cPink}{Reliability \& Networks}\scriptsize Time-to-failure, churn, how fast something spreads $=$ a first-hitting time.\end{cblock}
-  \end{column}
-  \begin{column}{0.235\textwidth}
-    \begin{cblock}{cAmber}{Quant Finance}\scriptsize Stock prices, ruin probability, risk of bankruptcy.\end{cblock}
-  \end{column}
-\end{columns}
-\vspace{0.7em}
-\footnotesize\textit{\textbf{\textcolor{cTeal}{Big idea:}} learn it once on a toy gambling problem, and a good part of modern ML comes for free.}
-\end{frame}
+
 % --------------------------------------------------- COMMON THREAD
 \begin{frame}[t]{One coin, one number line}
 \kick{The common thread}
@@ -385,37 +373,44 @@ Every system below is the \textbf{same mathematical object} in a different costu
 \centering\footnotesize\textit{\textcolor{cSlate}{Both the odds of winning and expected time follow similar piecewise recursions.}}
 \end{frame}
 
-% ---------------------------------------------------- S2 SOLUTION 1
+% ---------------------------------------------------- S2 SOLUTION 1 (REWRITTEN)
 \begin{frame}[t]{Cracking it --- Probability via Binary}
 \kick{Scenario 2 \ \textbullet\ \ tactic: walk the bits for $P(x)$}
 \footnotesize
 \begin{enumerate}[<+->]\setlength\itemsep{4pt}
-  \item \textbf{Spot the binary.} Represent the ratio $\frac{k}{N}$ in binary form: $0.n_1 n_2 n_3 \dots$
-  \item \textbf{Shift operations.} Doubling $2x$ is a \emph{left shift} of the digits. Losing from the top ($2x-N$) shifts \emph{and drops} the leading $1$. So the game just reads the binary string bit by bit.
-  \item \textbf{Walk the bits.} To calculate $P(x)$, traverse the binary representation. For the $i^{th}$ bit:
-    \begin{itemize}\setlength\itemsep{2pt}
-      \item If \textbf{bit is 0}: Multiply the running probability by $p$ (equivalent to $pP(2x)$).
-      \item If \textbf{bit is 1}: Multiply by $q$ and add $p$ (equivalent to $qP(2x-N)+p$).
+  \item \textbf{Why binary at all?} Write the wealth fraction $\tfrac{x}{N}$ in binary: $0.b_1 b_2 b_3 \dots$ The first bit $b_1$ answers exactly the question the game asks first --- ``is $x$ in the lower half $(b_1{=}0)$ or upper half $(b_1{=}1)$ of $[0,N]$?''
+  \item \textbf{The two moves are bit-shifts in disguise.}
+    \begin{itemize}\setlength\itemsep{1pt}
+      \item Lower half ($b_1{=}0$, $x<\tfrac N2$): she doubles, $x\to 2x$. The fraction $\tfrac{2x}{N}$ is just $\tfrac{x}{N}$ \emph{shifted one bit left}; the leading $0$ falls off, $b_2$ becomes the new lead bit.
+      \item Upper half ($b_1{=}1$, $x\ge\tfrac N2$): on a loss she drops to $2x-N$. The fraction $\tfrac{2x-N}{N}=2\cdot\tfrac{x}{N}-1$ --- a left shift, but now the leading $1$ is the one that falls off. Either way, \textbf{one bit gets consumed per round.}
+    \end{itemize}
+  \item \textbf{So the recursion just reads the binary string.} Walk $b_1 b_2 b_3 \dots$ left-to-right, maintaining a running probability $P$. Each bit fires one of the two recurrence cases:
+    \begin{itemize}\setlength\itemsep{1pt}
+      \item bit is $\mathbf{0}$: $P \leftarrow p\,P$ \hfill (matches $P(x)=p\,P(2x)$)
+      \item bit is $\mathbf{1}$: $P \leftarrow q\,P + p$ \hfill (matches $P(x)=q\,P(2x{-}N)+p$)
     \end{itemize}
 \end{enumerate}
-\vspace{0.8em}
-\begin{cblock}{cPurple}{The takeaway}\scriptsize Instead of a complicated formula, the recursion simplifies into a straightforward traversal of the binary string representing the wealth fraction.\end{cblock}
+\vspace{0.3em}
+\onslide<+->
+\begin{cblock}{cPurple}{The takeaway}\scriptsize What looked like a tangled piecewise recursion is actually a deterministic tour of the bits of $x/N$. The right \emph{representation} of the state space turns it into an $O(\log N)$ loop --- no closed form required.\end{cblock}
 \end{frame}
 
-% ---------------------------------------------------- S2 SOLUTION 2
+% ---------------------------------------------------- S2 SOLUTION 2 (REWRITTEN)
 \begin{frame}[t]{Cracking it --- Expected Duration via Binary}
 \kick{Scenario 2 \ \textbullet\ \ tactic: walk the bits for $\mathbb{E}(x)$}
 \footnotesize
 \begin{enumerate}[<+->]\setlength\itemsep{4pt}
-  \item \textbf{Apply the same logic.} The expected duration $\mathbb{E}(x)$ shares the exact same state transitions ($2x$ and $2x-N$). We can parse the exact same binary string to solve it.
-  \item \textbf{Walk the bits.} Traverse the binary representation of $\frac{k}{N}$. For the $i^{th}$ bit:
-    \begin{itemize}\setlength\itemsep{2pt}
-      \item If \textbf{bit is 0}: Multiply the expectation by $p$ and add $1$ (equivalent to $1+p\mathbb{E}(2x)$).
-      \item If \textbf{bit is 1}: Multiply the expectation by $q$ and add $1$ (equivalent to $1+q\mathbb{E}(2x-N)$).
+  \item \textbf{Same state machine, different ledger.} The moves are unchanged: lower half doubles ($x\to 2x$, a left shift dropping a $0$), upper half either ends or drops to $2x-N$ (a left shift dropping a $1$). So the binary digits of $\tfrac{x}{N}$ \emph{still} drive the game --- only what we accumulate along the way changes.
+  \item \textbf{Why each step adds $+1$.} We're now counting \emph{rounds}, not winning probability. Every bit consumed corresponds to one bet that actually got played, so we add $1$ each time. The multiplier in front of $\mathbb{E}$ is the chance the game \emph{survives} that round (and so still has rounds left to count).
+    \begin{itemize}\setlength\itemsep{1pt}
+      \item bit is $\mathbf{0}$ (lower half, she doubled): $\mathbb{E} \leftarrow 1 + p\,\mathbb{E}$ \hfill (game continues only on a win, prob.\ $p$)
+      \item bit is $\mathbf{1}$ (upper half, she played for the win): $\mathbb{E} \leftarrow 1 + q\,\mathbb{E}$ \hfill (game continues only on a loss, prob.\ $q$)
     \end{itemize}
+  \item \textbf{When does it end?} The bit-walk terminates when we run out of bits --- i.e.\ when $\tfrac{x}{N}$ has a finite binary expansion --- exactly when the game has fully resolved.
 \end{enumerate}
-\vspace{0.8em}
-\begin{cblock}{cTeal}{The takeaway}\scriptsize The entire strategy condenses into an elegant $O(\log N)$ bit-manipulation loop. A hard problem dissolves when viewed through the right data representation.\end{cblock}
+\vspace{0.3em}
+\onslide<+->
+\begin{cblock}{cTeal}{The takeaway}\scriptsize Two completely different quantities --- a probability and an expectation --- fall to the \emph{same} bit-walk, because both inherit the same state machine. When the recursion's state space matches a familiar data representation, the representation itself is the algorithm.\end{cblock}
 \end{frame}
 
 % =================================================== DIVIDER 3
@@ -449,14 +444,16 @@ Every system below is the \textbf{same mathematical object} in a different costu
 \end{cblock}
 \end{frame}
 
-% --------------------------------------------------- S3 SOLUTION I
+% --------------------------------------------------- S3 SOLUTION I (pi vector made explicit)
 \begin{frame}[t]{Cracking it --- the long-run picture}
 \kick{Scenario 3 \ \textbullet\ \ tactic: balance the flow}
 \begin{columns}[t,onlytextwidth]
   \begin{column}{0.56\textwidth}\footnotesize
-    \vspace{-2cm} % <-- Shifted this column up to prevent cutoff
+    \vspace{-2cm}
     \begin{enumerate}[<+->]\setlength\itemsep{2pt}
-      \item Long-run proportions $\pi$ are unchanged by one more step: $\pi=\pi P$, where:
+      \item Long-run proportions form a \textbf{row vector}
+        \[ \boldsymbol\pi = \bigl[\,\pi_0,\ \pi_1,\ \pi_2,\ \ldots,\ \pi_N\,\bigr], \]
+        with $\pi_i\ge 0$ and $\sum_i \pi_i = 1$. It's the distribution that's unchanged by one more step: $\boldsymbol\pi = \boldsymbol\pi P$, where
         \vspace{-0.3em}
         {\scriptsize
         \[
@@ -518,67 +515,23 @@ Every system below is the \textbf{same mathematical object} in a different costu
   \item Notice row $b$ is pinned entirely: $1 \cdot \mathbb{E}_b = 0$. Since the rates vary, there's no clean formula --- hand the matrix to a solver.
 \end{enumerate}
 \vspace{0.2em}
-{\centering\scriptsize\textcolor{cSlate}{\itshape Real-world: that stationary $\pi$ is \textbf{PageRank}; a first-hitting time is expected \textbf{time-to-failure}, \textbf{time-to-churn}, or how long something takes to spread.}\par}
+{\centering\scriptsize\textcolor{cSlate}{\itshape Real-world: that stationary $\boldsymbol\pi$ is \textbf{PageRank}; a first-hitting time is expected \textbf{time-to-failure}, \textbf{time-to-churn}, or how long something takes to spread.}\par}
 \end{frame}
 
-% ------------------------------------------------ META: THREE TACTICS
+% ------------------------------------------------ META: THREE TACTICS (REWRITTEN)
 \begin{frame}[t]{Three ways to crack a recurrence}
 \kick{Step back \ \textbullet\ \ the method}
 \small Notice we never used one hammer for everything. The puzzle tells you which tool is cheapest.
-\vspace{0.3em}
-\begin{columns}[t,onlytextwidth]
-  \begin{column}{0.57\textwidth}\footnotesize
-    \begin{itemize}\setlength\itemsep{6pt}
-      \item[\textcolor{cTeal}{\textbf{1}}] \textbf{Closed form} \textit{(Scenario 1)} --- constant coefficients $\to$ characteristic equation $\to$ a formula. Instant, exact, hands you insight (that $q/p$ ratio).
-      \item[\textcolor{cPurple}{\textbf{2}}] \textbf{Walk the recursion} \textit{(Scenario 2)} --- formula's ugly, but the states are structured $\to$ a tiny loop.
-      \item[\textcolor{cAmber}{\textbf{3}}] \textbf{Linear system} \textit{(Scenario 3)} --- coefficients vary $\to$ ``it's just $A\mathbf E=\mathbf b$,'' hand it to a solver.
-    \end{itemize}
-  \end{column}
-  \begin{column}{0.41\textwidth}
-    \begin{cblock}{cSlate}{Always in your back pocket}\scriptsize \textbf{Simulate.} Stuck? Run the random walk thousands of times and average. Approximate --- but it never fails to apply.\end{cblock}
-    \vspace{-0.1em}
-    \centering
-    \begin{tikzpicture}
-    \begin{axis}[width=5.2cm,height=2.5cm,xmin=0,xmax=60,ymin=0,ymax=50,title={\tiny\color{cInk}three lives, one fair game},xlabel={\tiny round},ytick={0,25,50}]
-      \draw[dashed,cTeal!60] (axis cs:0,50)--(axis cs:60,50);
-      \draw[dashed,cPink!60] (axis cs:0,0)--(axis cs:60,0);
-      \addplot[cPurple,line width=0.7pt] coordinates {(0,25) (1,24) (2,23) (3,24) (4,25) (5,24) (6,23) (7,22) (8,23) (9,22) (10,21) (11,20) (12,21) (13,22) (14,23) (15,22) (16,21) (17,20) (18,19) (19,20) (20,21) (21,22) (22,23) (23,24) (24,25) (25,26) (26,25) (27,24) (28,23) (29,24) (30,25) (31,26) (32,27) (33,26) (34,25) (35,24) (36,25) (37,24) (38,23) (39,22) (40,21) (41,20) (42,19) (43,20) (44,19) (45,18) (46,19) (47,18) (48,17) (49,18) (50,17) (51,18) (52,17) (53,16) (54,15) (55,16) (56,15) (57,14) (58,15) (59,14) (60,13)};
-      \addplot[cTeal,line width=0.7pt] coordinates {(0,25) (1,26) (2,27) (3,26) (4,27) (5,26) (6,27) (7,28) (8,27) (9,28) (10,29) (11,30) (12,31) (13,32) (14,31) (15,32) (16,33) (17,32) (18,31) (19,30) (20,31) (21,30) (22,31) (23,30) (24,31) (25,32) (26,33) (27,34) (28,33) (29,34) (30,33) (31,32) (32,33) (33,32) (34,33) (35,34) (36,35) (37,34) (38,35) (39,36) (40,35) (41,36) (42,37) (43,36) (44,35) (45,36) (46,35) (47,34) (48,33) (49,32) (50,33) (51,32) (52,33) (53,34) (54,33) (55,34) (56,35) (57,36) (58,35) (59,34) (60,33)};
-      \addplot[cPink,line width=0.7pt] coordinates {(0,25) (1,24) (2,25) (3,24) (4,25) (5,24) (6,25) (7,24) (8,23) (9,22) (10,21) (11,22) (12,23) (13,22) (14,23) (15,24) (16,25) (17,24) (18,23) (19,22) (20,23) (21,22) (22,21) (23,22) (24,23) (25,24) (26,25) (27,24) (28,25) (29,24) (30,23) (31,22) (32,23) (33,22) (34,21) (35,22) (36,21) (37,22) (38,23) (39,24) (40,23) (41,22) (42,21) (43,22) (44,23) (45,22) (46,23) (47,24) (48,25) (49,26) (50,25) (51,24) (52,25) (53,24) (54,25) (55,24) (56,25) (57,26) (58,27) (59,26) (60,27)};
-    \end{axis}
-    \end{tikzpicture}
-  \end{column}
-\end{columns}
-\vspace{0.3em}
+\vspace{0.8em}
+\begin{itemize}\setlength\itemsep{12pt}
+  \item[\textcolor{cTeal}{\textbf{1}}] \textbf{Closed form} \textit{(Scenario 1)} --- constant coefficients turn the recurrence into a characteristic equation, and you read off a formula. Instant, exact, and it hands you genuine insight (that $q/p$ ratio that decides everything).
+  \item[\textcolor{cPurple}{\textbf{2}}] \textbf{Spot the hidden structure} \textit{(Scenario 2)} --- the recursion's transitions ($x\!\to\!2x$ and $x\!\to\!2x{-}N$) were bit-shifts in disguise. When the states secretly match a familiar data representation, walk that representation directly. No closed form, no solver --- the data layout \emph{is} the algorithm, and we get an $O(\log N)$ loop for free.
+  \item[\textcolor{cAmber}{\textbf{3}}] \textbf{Linear system} \textit{(Scenario 3)} --- once coefficients vary with the state, no clean formula survives. Stack the equations into $A\mathbf{E}=\mathbf{b}$ and hand it to a solver. Less elegant, but it always works.
+\end{itemize}
+\vspace{0.4em}
 \centering\footnotesize\textit{\textcolor{cSlate}{Reach for the cheapest tool that works --- and know when to stop hunting for a formula.}}
 \end{frame}
 
-% ------------------------------------------------- BEYOND THE CASINO
-\begin{frame}[t]{Beyond the casino}
-\kick{Where this shows up}
-\small Strip off the story and this same random walk is everywhere.
-\vspace{0.3em}
-\begin{columns}[c,onlytextwidth]
-  \begin{column}{0.57\textwidth}\footnotesize
-    \begin{itemize}\setlength\itemsep{6pt}
-      \item[\textcolor{cTeal}{\textbullet}] \textbf{Risk of ruin} --- position sizing, insurance reserves and bankroll math are exactly Scenario 1's ruin probability.
-      \item[\textcolor{cPurple}{\textbullet}] \textbf{Learning the best bet} --- let the gambler \emph{choose} her stake and you've built reinforcement learning; the optimal play is bold, with a famously fractal value curve (right).
-      \item[\textcolor{cAmber}{\textbullet}] \textbf{Reliability \& ops} --- a first-hitting time is expected \emph{time-to-failure}, time-to-churn, or how fast a rumour, infection, or queue backlog spreads.
-      \item[\textcolor{cTeal}{\textbullet}] \textbf{PageRank} --- the stationary distribution of a random web-surfer; the next slide unpacks it.
-    \end{itemize}
-  \end{column}
-  \begin{column}{0.41\textwidth}
-    \centering
-    \begin{tikzpicture}
-    \begin{axis}[width=5.3cm,height=3.0cm,title={\tiny\color{cInk}optimal value $V^{*}(s)$ --- fractal},
-        xmin=0,xmax=100,ymin=0,ymax=1,xlabel={\tiny capital $s$}]
-      \addplot[cPurple] coordinates {(0,0.00000) (1,0.00207) (2,0.00516) (3,0.00923) (4,0.01291) (5,0.01739) (6,0.02306) (7,0.02781) (8,0.03228) (9,0.03769) (10,0.04346) (11,0.05035) (12,0.05766) (13,0.06524) (14,0.06954) (15,0.07443) (16,0.08069) (17,0.08661) (18,0.09421) (19,0.10314) (20,0.10866) (21,0.11597) (22,0.12589) (23,0.13358) (24,0.14415) (25,0.16000) (26,0.16310) (27,0.16775) (28,0.17384) (29,0.17937) (30,0.18608) (31,0.19460) (32,0.20172) (33,0.20841) (34,0.21653) (35,0.22520) (36,0.23553) (37,0.24649) (38,0.25786) (39,0.26430) (40,0.27165) (41,0.28103) (42,0.28992) (43,0.30132) (44,0.31472) (45,0.32299) (46,0.33395) (47,0.34883) (48,0.36037) (49,0.37622) (50,0.40000) (51,0.40310) (52,0.40775) (53,0.41384) (54,0.41937) (55,0.42608) (56,0.43460) (57,0.44172) (58,0.44841) (59,0.45653) (60,0.46520) (61,0.47553) (62,0.48649) (63,0.49786) (64,0.50430) (65,0.51165) (66,0.52103) (67,0.52992) (68,0.54132) (69,0.55472) (70,0.56299) (71,0.57395) (72,0.58883) (73,0.60037) (74,0.61622) (75,0.64000) (76,0.64465) (77,0.65162) (78,0.66076) (79,0.66905) (80,0.67912) (81,0.69189) (82,0.70258) (83,0.71262) (84,0.72479) (85,0.73779) (86,0.75330) (87,0.76973) (88,0.78679) (89,0.79645) (90,0.80747) (91,0.82155) (92,0.83487) (93,0.85198) (94,0.87207) (95,0.88448) (96,0.90092) (97,0.92324) (98,0.94055) (99,0.96433) (100,1.00000)};
-    \end{axis}
-    \end{tikzpicture}\\[1pt]
-    {\scriptsize\textcolor{cSlate}{\itshape The same machinery quietly powers a lot of modern ML.}}
-  \end{column}
-\end{columns}
-\end{frame}
 % ------------------------------------------------- PAGERANK DEEP DIVE
 \begin{frame}[t,shrink=5]{PageRank --- the random surfer}
 \kick{Where this shows up \ \textbullet\ \ deep dive}
@@ -588,7 +541,7 @@ Every system below is the \textbf{same mathematical object} in a different costu
   
   % --- LEFT HALF: TEXT ---
   \begin{column}{0.48\textwidth}\footnotesize
-    \vspace{-2.5 cm} % <-- Pulls the text block up. Adjust this value to fine-tune.
+    \vspace{-2.5 cm}
     \begin{enumerate}\setlength\itemsep{0pt}
       \item \textbf{Same balance condition.} The rank vector is fixed under one more click: $\boldsymbol\pi = \boldsymbol\pi M$, where $M_{ij}$ is the chance of hopping $i\!\to\! j$.
       \item \textbf{Vote by linking.} A page is important if important pages link \emph{to} it --- importance flows along edges, split evenly across a page's out-links.
@@ -599,7 +552,7 @@ Every system below is the \textbf{same mathematical object} in a different costu
   
   % --- RIGHT HALF: DIAGRAM ---
   \begin{column}{0.48\textwidth}
-    \vspace{0.5em} % <-- Pushes the diagram down slightly. Adjust to fine-tune.
+    \vspace{0.5em}
     \centering
     \begin{tikzpicture}[node distance=1.2cm,every node/.style={font=\scriptsize}]
       \node[stwin,minimum size=1.0cm] (a) {A};
@@ -618,28 +571,6 @@ Every system below is the \textbf{same mathematical object} in a different costu
     \begin{cblock}{cTeal}{Why it mattered}\scriptsize Treating links as votes --- and ranking by the random walk's stationary distribution --- is the idea that launched Google. The same eigenvector trick now drives citation ranking, recommendation graphs, and fraud-ring detection.\end{cblock}
   \end{column}
   
-\end{columns}
-\end{frame}
-% ----------------------------------------------------- DISCUSSION
-\begin{frame}[t]{Let's talk}
-\kick{Your turn}
-\small This deck is built to \textbf{pause at each scenario} --- predict the next step before the click. A few things worth arguing about:
-\vspace{0.5em}
-\begin{columns}[t,onlytextwidth]
-  \begin{column}{0.48\textwidth}\footnotesize
-    \begin{itemize}\setlength\itemsep{7pt}
-      \item[\textcolor{cTeal}{\textbullet}] Even at fair odds, distance-to-target crushes you --- why does that feel so counterintuitive?
-      \item[\textcolor{cPurple}{\textbullet}] When is hunting for a closed form a waste of time versus just coding the recurrence?
-      \item[\textcolor{cAmber}{\textbullet}] Why do changing transition probabilities ($p_k, q_k$) force us into linear algebra instead of closed forms?
-    \end{itemize}
-  \end{column}
-  \begin{column}{0.48\textwidth}\footnotesize
-    \begin{itemize}\setlength\itemsep{7pt}
-      \item[\textcolor{cAmber}{\textbullet}] Bold play beating cautious play under bad odds --- does that match your gut on risk?
-      \item[\textcolor{cTeal}{\textbullet}] ``Where does this spend most of its time?'' --- where else is that the useful question?
-      \item[\textcolor{cPurple}{\textbullet}] What quantity in your world is secretly a \emph{first hitting time}?
-    \end{itemize}
-  \end{column}
 \end{columns}
 \end{frame}
 
